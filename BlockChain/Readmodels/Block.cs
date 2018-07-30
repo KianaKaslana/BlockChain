@@ -43,16 +43,34 @@ namespace BlockChain.Readmodels
             }
         }
 
+        /// <summary>
+        /// Index of the Block
+        /// </summary>
         public int Index { get; }
 
+        /// <summary>
+        /// Hash of the previous Block
+        /// </summary>
         public string PreviousHash { get; }
 
+        /// <summary>
+        /// Hash of the next block
+        /// </summary>
         public string NextHash { get; private set; }
 
+        /// <summary>
+        /// TimeStamp indicating when the Block was generated
+        /// </summary>
         public DateTime TimeStamp { get; }
 
+        /// <summary>
+        /// Data stored by the block
+        /// </summary>
         public byte[] Data { get; }
 
+        /// <summary>
+        /// SHA256 Hash of the block covering the Index, previous hash, timestamp and data
+        /// </summary>
         public string Hash { get; }
 
         /// <summary>

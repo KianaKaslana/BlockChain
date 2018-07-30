@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using BlockChain.ExtensionMethods;
 using BlockChain.Readmodels;
 using Serilog;
@@ -16,14 +17,48 @@ namespace BlockChain
         /// <summary>
         /// Default Constructor
         /// </summary>
+        /// <param name="peerToPeerController">PeerController instance</param>
         /// <param name="genesisBlock">The first block in the chain</param>
-        public BlockManager(Block genesisBlock)
+        public BlockManager(PeerToPeerController peerToPeerController, Block genesisBlock)
         {
+            _peerToPeerController = peerToPeerController;
+            _peerToPeerController.SetBlockCheckFunction(FuncToCheckBlocks, GetLastBlock, GetBlocks, ReplaceChain);
+            _peerToPeerController.BlockReceivedFromNetwork += PeerToPeerControllerOnBlockReceivedFromNetwork;
             _blockChain = new List<Block>
             {
                 genesisBlock
             };
             _logger = Log.Logger.ForContext<BlockManager>();
+        }
+        
+        /// <summary>
+        /// Function that can be invoked to check if a provided block is the last block in our chain
+        /// </summary>
+        /// <param name="arg">The block to check</param>
+        /// <returns>Indicates if block is last block in our chain</returns>
+        private bool FuncToCheckBlocks(Block arg)
+        {
+            var lastBlock = _blockChain.Last();
+            return arg.Index == lastBlock.Index
+                   && arg.Hash == lastBlock.Hash;
+        }
+
+        /// <summary>
+        /// Occurs when a Block was received from a peer
+        /// </summary>
+        /// <param name="sender">Sender of the event</param>
+        /// <param name="e">Received Block</param>
+        private void PeerToPeerControllerOnBlockReceivedFromNetwork(object sender, Block e)
+        {
+            if (e.CheckBlockValidity(GetLastBlock()))
+            {
+                _blockChain.Add(e);
+                _logger.Information("Added block {Hash} to the blockchain", e.Hash);
+            }
+            else
+            {
+                _logger.Warning("Received {Hash} which is not a valid block", e.Hash);
+            }
         }
 
         /// <summary>
@@ -50,6 +85,8 @@ namespace BlockChain
             {
                 _logger.Information("New block was generated with {Hash}. Chain now contains {BlockCount} blocks", newBlock.Hash, _blockChain.Count);
             }
+
+            Task.Run(() => _peerToPeerController.BroadcastNewBlockAsync(newBlock));
 
             return newBlock;
         }
@@ -89,5 +126,10 @@ namespace BlockChain
         /// Serilog Logger instance
         /// </summary>
         private readonly ILogger _logger;
+
+        /// <summary>
+        /// PeerToPeerController instance
+        /// </summary>
+        private readonly PeerToPeerController _peerToPeerController;
     }
 }

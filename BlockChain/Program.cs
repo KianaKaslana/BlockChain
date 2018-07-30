@@ -11,8 +11,10 @@ namespace BlockChain
         {
             SetupLogger();
             var genesisBlock = new Block(0, null, null, DateTime.UtcNow, Encoding.UTF8.GetBytes("Genesis block desu"), "");
-            var blockManager = new BlockManager(genesisBlock);
-            var controller = new UserController(blockManager);
+            var peerController = new PeerToPeerController(8081);
+            var blockManager = new BlockManager(peerController, genesisBlock);
+            var controller = new UserController(blockManager, peerController, 8080);
+            
 
             Log.Logger.Information("BlockChain is running...");
 
