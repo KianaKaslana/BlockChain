@@ -22,19 +22,37 @@ namespace BlockChain
         /// <param name="genesisBlock">The first block in the chain</param>
         public BlockManager(PeerToPeerController peerToPeerController, Block genesisBlock)
         {
+            _logger = Log.Logger.ForContext<BlockManager>();
+
+            _chainPersistence = new ChainPersistence();
             _difficulty = 5;
             _peerToPeerController = peerToPeerController;
             _peerToPeerController.SetBlockCheckFunction(FuncToCheckBlocks, GetLastBlock, GetBlocks, ReplaceChain, MineBlock);
             _peerToPeerController.BlockReceivedFromNetwork += PeerToPeerControllerOnBlockReceivedFromNetwork;
-            lock (_blockChainLock)
-            {
-                _blockChain = new List<Block>
-                {
-                    genesisBlock
-                };
-            }
+            SetupChain(genesisBlock);
+        }
 
-            _logger = Log.Logger.ForContext<BlockManager>();
+        /// <summary>
+        /// Attempt to load the
+        /// </summary>
+        private void SetupChain(Block genesisBlock)
+        {
+            var persistedChain = _chainPersistence.LoadChain();
+            if (persistedChain == null)
+            {
+                _logger.Information("Starting new chain");
+                lock (_blockChainLock)
+                {
+                    _blockChain = new List<Block>
+                    {
+                        genesisBlock
+                    };
+                }
+            }
+            else
+            {
+                ReplaceChain(persistedChain);
+            }
         }
         
         /// <summary>
@@ -68,6 +86,8 @@ namespace BlockChain
                 {
                     lastBlock.SetNextBlock(e);
                     _blockChain.Add(e);
+
+                    Task.Run(() => PersistChain());
                 }
 
                 _miningCancellationTokenSource?.Cancel();
@@ -126,7 +146,7 @@ namespace BlockChain
                     lock (_blockChainLock)
                     {
                         _blockChain.Add(block);
-
+                        Task.Run(() => PersistChain());
 
                         using (LogContext.PushProperty("Block", block, true))
                         {
@@ -157,14 +177,20 @@ namespace BlockChain
         /// <param name="newChain">Chain to consider for replacement</param>
         public void ReplaceChain(List<Block> newChain)
         {
+            var replaceEmptyChain = _blockChain == null;
             lock (_blockChainLock)
             {
-                if (newChain.IsValidChain() && newChain.Count > _blockChain.Count)
+                if (newChain.IsValidChain() && newChain.Count > (_blockChain?.Count ?? 0))
                 {
                     _logger.Information(
                         "Replaced current chain with {BlockCount} blocks with longer chain containing {LongerBlockCount} blocks",
-                        _blockChain.Count, newChain.Count);
+                        _blockChain?.Count ?? 0, newChain.Count);
                     _blockChain = newChain;
+
+                    if (!replaceEmptyChain)
+                    {
+                        Task.Run(() => PersistChain());
+                    }
                 }
                 else
                 {
@@ -183,6 +209,14 @@ namespace BlockChain
             {
                 return _blockChain.ToList();
             }
+        }
+
+        /// <summary>
+        /// Persist the chain
+        /// </summary>
+        private void PersistChain()
+        {
+            _chainPersistence.PersistChain(_blockChain);
         }
 
         /// <summary>
@@ -219,5 +253,10 @@ namespace BlockChain
         /// Token source used to cancel mining of a block
         /// </summary>
         private CancellationTokenSource _miningCancellationTokenSource;
+        
+        /// <summary>
+        /// ChainPersistence instance
+        /// </summary>
+        private readonly ChainPersistence _chainPersistence;
     }
 }

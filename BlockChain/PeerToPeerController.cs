@@ -14,6 +14,7 @@ using Serilog;
 
 namespace BlockChain
 {
+    // TODO - We need a method to pull parts of the chain from peers
     public class PeerToPeerController
     {
         /// <summary>
