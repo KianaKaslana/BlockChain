@@ -17,13 +17,15 @@ namespace BlockChain.Readmodels
         /// <param name="timeStamp">TimeStamp when block was created</param>
         /// <param name="data">Data contained in the block</param>
         /// <param name="hash">Hash of blocks data</param>
-        public Block(int index, string previousHash, string nextHash, DateTime timeStamp, byte[] data, string hash)
+        /// <param name="nonce">Nonce used to mine</param>
+        public Block(int index, string previousHash, string nextHash, DateTime timeStamp, byte[] data, string hash, int nonce)
         {
             Index = index;
             PreviousHash = previousHash;
             NextHash = nextHash;
             TimeStamp = timeStamp;
             Data = data;
+            Nonce = nonce;
 
             if (string.IsNullOrEmpty(hash))
             {
@@ -71,7 +73,12 @@ namespace BlockChain.Readmodels
         /// <summary>
         /// SHA256 Hash of the block covering the Index, previous hash, timestamp and data
         /// </summary>
-        public string Hash { get; }
+        public string Hash { get; set; }
+
+        /// <summary>
+        /// Nonce used for mining
+        /// </summary>
+        public int Nonce { get; set; }
 
         /// <summary>
         /// Set the next block

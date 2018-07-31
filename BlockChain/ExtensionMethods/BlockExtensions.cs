@@ -4,6 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using BlockChain.Readmodels;
+using Serilog;
 
 namespace BlockChain.ExtensionMethods
 {
@@ -23,11 +24,34 @@ namespace BlockChain.ExtensionMethods
             blockData.AddRange(Encoding.UTF8.GetBytes(block.Index.ToString()));
             blockData.AddRange(Encoding.UTF8.GetBytes(block.PreviousHash ?? String.Empty));
             blockData.AddRange(Encoding.UTF8.GetBytes(block.TimeStamp.ToBinary().ToString()));
+            blockData.AddRange(Encoding.UTF8.GetBytes(block.Nonce.ToString()));
             blockData.AddRange(block.Data);
 
             var shaer = new SHA256Managed();
             var hashArr = shaer.ComputeHash(blockData.ToArray());
             return String.Join("", hashArr.Select(x => x.ToString("x2")));
+        }
+
+        /// <summary>
+        /// Mine a block by computing hashes
+        /// </summary>
+        /// <param name="block">The block to be mined</param>
+        /// <param name="difficulty">How hard should the mining be?</param>
+        public static string Mine(this Block block, int difficulty)
+        {
+            while (true)
+            {
+                var hashResult = block.CalculateHash();
+                var leadingZero = new string('0', difficulty);
+                if (hashResult.StartsWith(leadingZero))
+                {
+                    block.Hash = hashResult;
+                    Log.Logger.Information("Generated valid hash {Hash} for new block", hashResult);
+                    return hashResult;
+                }
+
+                block.Nonce++;
+            }
         }
 
         /// <summary>
@@ -38,12 +62,12 @@ namespace BlockChain.ExtensionMethods
         /// <returns>Indicate if block being added is valid</returns>
         public static bool CheckBlockValidity(this Block newBlock, Block previousBlock)
         {
-            if (newBlock.Index != previousBlock.Index + 1)
+            if (newBlock.Index != (previousBlock?.Index + 1 ?? 0))
             {
                 return false;
             }
 
-            if (newBlock.PreviousHash != previousBlock.Hash)
+            if (newBlock.PreviousHash != previousBlock?.Hash)
             {
                 return false;
             }

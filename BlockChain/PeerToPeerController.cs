@@ -125,7 +125,6 @@ namespace BlockChain
           var dataString = Encoding.UTF8.GetString(e.Message);
             var obj = JsonConvert.DeserializeObject<MessageContainer>(dataString);
             _logger.Information("Received {MessageType} message from {IpAddress}", obj.MessageType, e.RemoteIp);
-            // TODO - Move out to seperate methods to handle this
             switch (obj.MessageType)
             {
                 case MessageType.NewBlockMined:

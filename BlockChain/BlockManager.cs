@@ -75,22 +75,28 @@ namespace BlockChain
         /// </summary>
         /// <param name="data">Data to add to the block</param>
         /// <returns>Generated block</returns>
-        public Block GenerateBlock(byte[] data)
+        public void GenerateBlock(byte[] data)
         {
             var lastBlock = GetLastBlock();
-            var newBlock = new Block(lastBlock.Index + 1, lastBlock.Hash, null, DateTime.Now, data, string.Empty);
-            lastBlock.SetNextBlock(newBlock);
-            _blockChain.Add(newBlock);
-            using (LogContext.PushProperty("Block", newBlock, true))
+            var newBlock = new Block(lastBlock.Index + 1, lastBlock.Hash, null, DateTime.Now, data, string.Empty, 1);
+            Task.Run(() => MineBlock(lastBlock, newBlock));
+        }
+
+        private void MineBlock(Block lastBlock, Block blockToMine)
+        {
+            _logger.Information("Mining new block...");
+            blockToMine.Mine(2);
+
+            lastBlock.SetNextBlock(blockToMine);
+            _blockChain.Add(blockToMine);
+            using (LogContext.PushProperty("Block", blockToMine, true))
             {
-                _logger.Information("New block was generated with {Hash}. Chain now contains {BlockCount} blocks", newBlock.Hash, _blockChain.Count);
+                _logger.Information("New block was generated with {Hash}. Chain now contains {BlockCount} blocks", blockToMine.Hash, _blockChain.Count);
             }
 
-            Task.Run(() => _peerToPeerController.BroadcastNewBlockAsync(newBlock));
-
-            return newBlock;
+            Task.Run(() => _peerToPeerController.BroadcastNewBlockAsync(blockToMine));
         }
-        
+
         /// <summary>
         /// Replace the current chain with the new chain if the new chain is valid
         /// </summary>

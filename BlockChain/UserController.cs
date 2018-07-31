@@ -9,7 +9,7 @@ using Serilog.Context;
 
 namespace BlockChain
 {
-    public class UserController
+    public sealed class UserController : IDisposable
     {
         /// <summary>
         /// Default Constructor
@@ -92,7 +92,6 @@ namespace BlockChain
                 await memStream.CopyToAsync(context.Response.OutputStream);
                 context.Response.StatusCode = 200;
                 context.Response.ContentType = @"text\json";
-                context.Response.Close();
             }
         }
 
@@ -113,8 +112,6 @@ namespace BlockChain
                 {
                     context.Response.StatusCode = 500;
                 }
-
-                context.Response.Close();
             }
         }
 
@@ -130,7 +127,6 @@ namespace BlockChain
                 context.Response.StatusCode = 200;
                 context.Response.ContentType = @"text\json";
                 memStream.CopyTo(context.Response.OutputStream);
-                context.Response.Close();
             }
         }
 
@@ -147,14 +143,8 @@ namespace BlockChain
                 data = inMemStream.ToArray();
             }
 
-            var resultBlock = JsonConvert.SerializeObject(_blockManager.GenerateBlock(data));
-            using (var memStream = new MemoryStream(Encoding.UTF8.GetBytes(resultBlock)))
-            {
-                context.Response.StatusCode = 200;
-                context.Response.ContentType = @"text\json";
-                memStream.CopyTo(context.Response.OutputStream);
-                context.Response.Close();
-            }
+            _blockManager.GenerateBlock(data);
+            context.Response.StatusCode = 201;
         }
 
         /// <summary>
@@ -176,5 +166,11 @@ namespace BlockChain
         /// Serilog Logger instance
         /// </summary>
         private readonly ILogger _logger;
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            ((IDisposable) _listener)?.Dispose();
+        }
     }
 }
