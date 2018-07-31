@@ -242,7 +242,15 @@ namespace BlockChain
         {
             try
             {
-                // TODO - We cannot add our own or the loop-back address
+                var ownIp = await _transportManager.GetIpAddress();
+                if (ipAddress == ownIp
+                    || ipAddress == "127.0.0.1"
+                    || ipAddress == "localhost")
+                {
+                    _logger.Warning("Cannot add own client to peers");
+                    return false;
+                }
+
                 if (_transportManager.KnownPeers.Any(x => x.IpAddress == ipAddress))
                 {
                     _logger.Warning("Peer with {IpAddress} has already been added", ipAddress);

@@ -5,6 +5,7 @@
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <Authors>Kiana Kaslana</Authors>
     <Company>Kiana Kaslana</Company>
+    <Version>1.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>
