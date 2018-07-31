@@ -17,6 +17,9 @@ namespace BlockChain
             var blockManager = new BlockManager(peerController, genesisBlock);
             using (new UserController(blockManager, peerController, 8080))
             {
+                var wallet = new Wallet();
+
+
                 Log.Logger.Information("BlockChain is running...");
                 Console.WriteLine("Press any key to exit");
                 Console.ReadKey();
