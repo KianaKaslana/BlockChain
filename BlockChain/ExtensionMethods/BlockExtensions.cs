@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using BlockChain.Readmodels;
 using Serilog;
 
@@ -37,7 +38,8 @@ namespace BlockChain.ExtensionMethods
         /// </summary>
         /// <param name="block">The block to be mined</param>
         /// <param name="difficulty">How hard should the mining be?</param>
-        public static string Mine(this Block block, int difficulty)
+        /// <param name="miningCancellationToken">Token used to stop mining</param>
+        public static string Mine(this Block block, int difficulty, CancellationToken miningCancellationToken)
         {
             while (true)
             {
@@ -51,6 +53,12 @@ namespace BlockChain.ExtensionMethods
                 }
 
                 block.Nonce++;
+
+                if (miningCancellationToken.IsCancellationRequested)
+                {
+                    Log.Logger.Information("Mining of Block was cancelled");
+                    return string.Empty;
+                }
             }
         }
 

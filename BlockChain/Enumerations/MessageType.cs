@@ -28,6 +28,11 @@
         /// <summary>
         /// Response to <see cref="RequestFullChain"/>
         /// </summary>
-        FullChain
+        FullChain,
+
+        /// <summary>
+        /// Data for the next block that should be mined
+        /// </summary>
+        BlockToMine
     }
 }
