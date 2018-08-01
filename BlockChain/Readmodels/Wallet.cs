@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Threading;
 using SecurityDriven.Inferno.Extensions;
 using Serilog;
 
@@ -21,6 +19,10 @@ namespace BlockChain.Readmodels
         {
             PrivateKeyPath = $"{walletName}.key";
             _blockManager = blockManager;
+            if (walletName != "Coinbase")
+            {
+                _blockManager.FuncToGenerateGenerationTransaction = GenerateGenerationTransaction;
+            }
             if (!LoadKeys())
             {
                 GenerateKeys();
@@ -53,6 +55,19 @@ namespace BlockChain.Readmodels
         }
 
         /// <summary>
+        /// Generate a generation transaction that is used to award coins for mining
+        /// </summary>
+        /// <returns>Generated transaction</returns>
+        public Transaction GenerateGenerationTransaction()
+        {
+            var coinbaseAddr = new string('0', 208);
+            var transaction = new Transaction(coinbaseAddr.ToBytes(), GetPublicKey, 1, null);
+            transaction.Outputs.Add(new TransactionOutput(GetPublicKey, 1, transaction.TransactionId));
+            transaction.SignTransaction(GetPrivateKey);
+            return transaction;
+        }
+
+        /// <summary>
         /// Create a transaction to send funds to an address
         /// </summary>
         /// <param name="recipientKey">Public key of the recipient</param>
@@ -71,7 +86,7 @@ namespace BlockChain.Readmodels
             var inputsToTransaction = new List<TransactionInput>();
             foreach (var output in _blockManager.GetUnspentOutputsForKey(GetPublicKey).OrderBy(x => x.Value))
             {
-                inputsToTransaction.Add(new TransactionInput(output.Id));
+                inputsToTransaction.Add(new TransactionInput(output.Id, output));
                 valueOfOutputs += output.Value;
 
                 if (valueOfOutputs >= value)
@@ -81,6 +96,7 @@ namespace BlockChain.Readmodels
             }
 
             var transaction = new Transaction(GetPublicKey, recipientKey, value, inputsToTransaction);
+            transaction.ProcessTransaction(_blockManager);
             transaction.SignTransaction(GetPrivateKey);
             _blockManager.AddTransaction(transaction, true);
 

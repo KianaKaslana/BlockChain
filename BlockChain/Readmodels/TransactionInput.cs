@@ -9,9 +9,11 @@
         /// Construct with OutputId
         /// </summary>
         /// <param name="transactionOutputId">The output Id</param>
-        public TransactionInput(string transactionOutputId)
+        /// <param name="output">Output transaction</param>
+        public TransactionInput(string transactionOutputId, TransactionOutput output)
         {
             TransactionOutputId = transactionOutputId;
+            TransactionOutput = output;
         }
 
         /// <summary>

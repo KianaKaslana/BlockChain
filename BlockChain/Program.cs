@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using BlockChain.ExtensionMethods;
 using BlockChain.Readmodels;
@@ -32,6 +33,7 @@ namespace BlockChain
         private static void GenerateGenesisBlock(BlockManager blockManager, Wallet myWallet)
         {
             var coinbase = new Wallet(blockManager, "Coinbase");
+            Log.Logger.Information("Coinbase address: {WalletAddress}", string.Join("", coinbase.GetPublicKey.Select(x => x.ToString("x2"))));
             var genesisTransaction = new Transaction(coinbase.GetPublicKey, myWallet.GetPublicKey, 100, null);
             genesisTransaction.Outputs.Add(new TransactionOutput(myWallet.GetPublicKey, 100, genesisTransaction.TransactionId));
             genesisTransaction.SignTransaction(coinbase.GetPrivateKey);

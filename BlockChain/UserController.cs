@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BlockChain.Readmodels;
 using Newtonsoft.Json;
+using SecurityDriven.Inferno.Extensions;
 using Serilog;
 using Serilog.Context;
 
@@ -29,6 +30,7 @@ namespace BlockChain
             _listener.Prefixes.Add($"http://localhost:{port}/getpeers/");
             _listener.Prefixes.Add($"http://localhost:{port}/getbalance/");
             _listener.Prefixes.Add($"http://localhost:{port}/getwalletaddress/");
+            _listener.Prefixes.Add($"http://localhost:{port}/sendfunds/");
             Task.Run(RunServerAsync);
         }
 
@@ -75,6 +77,9 @@ namespace BlockChain
                     case "/getwalletaddress":
                         ReturnWalletAddress(context);
                         break;
+                    case "/sendfunds":
+                        HandleFundSending(context);
+                        break;
                 }
             }
             catch (Exception exception)
@@ -92,9 +97,38 @@ namespace BlockChain
         }
 
         /// <summary>
+        /// Handle transfer of funds between accounts
+        /// </summary>
+        /// <param name="context">The context of the connection to which we are responding</param>
+        private void HandleFundSending(HttpListenerContext context)
+        {
+            using (var streamReader = new StreamReader(context.Request.InputStream))
+            {
+                var jsonData = streamReader.ReadToEnd();
+                var transferRequest = JsonConvert.DeserializeObject<FundsTransferRequest>(jsonData);
+                var generatedTransaction = _wallet.SendFunds(transferRequest.RecipientAddress.ToBytes(), transferRequest.Value);
+                if (generatedTransaction == null)
+                {
+                    // TODO - Expand with reason
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                }
+                else
+                {
+                    var jsonTransaction = JsonConvert.SerializeObject(generatedTransaction);
+                    using (var memStream = new MemoryStream(Encoding.UTF8.GetBytes(jsonTransaction)))
+                    {
+                        context.Response.StatusCode = 201;
+                        context.Response.ContentType = @"text\json";
+                        memStream.CopyTo(context.Response.OutputStream);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Returns the miner's wallet address
         /// </summary>
-        /// <param name="context"></param>
+        /// <param name="context">The context of the connection to which we are responding</param>
         private void ReturnWalletAddress(HttpListenerContext context)
         {
             var publicKey = string.Join("", _wallet.GetPublicKey.Select(x => x.ToString("x2")));

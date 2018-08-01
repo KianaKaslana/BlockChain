@@ -70,12 +70,6 @@ namespace BlockChain.Readmodels
         public bool ProcessTransaction(BlockManager blockManager)
         {
             var logger = Log.Logger.ForContext<Transaction>();
-            if (!VerifySignature())
-            {
-                logger.Error("Could not process transaction - Signature is not valid");
-                return false;
-            }
-
             foreach (var input in Inputs)
             {
                 // TODO - Ensure inputs are not spent...
@@ -137,6 +131,8 @@ namespace BlockChain.Readmodels
             // TODO - We probably want to sign the inputs as well
             return $"{Encoding.UTF8.GetString(Sender)}{Encoding.UTF8.GetString(Receiver)}{Value}";
         }
+
+        // TODO - We need a method that can be used to validate the transaction
 
         /// <summary>
         /// Calcualte the hash for the transaction

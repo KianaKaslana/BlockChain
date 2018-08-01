@@ -36,6 +36,11 @@ namespace BlockChain
         }
 
         /// <summary>
+        /// Function that should be called to allocate mining reward
+        /// </summary>
+        public Func<Transaction> FuncToGenerateGenerationTransaction { get; set; }
+
+        /// <summary>
         /// Occurs when a transaction was received from the network
         /// </summary>
         /// <param name="sender">Sender of the event</param>
@@ -87,7 +92,7 @@ namespace BlockChain
                     return;
                 }
 
-                if (_currentlyMiningBlock.Transactions.Contains(transactionToAdd))
+                if (_currentlyMiningBlock?.Transactions.Contains(transactionToAdd) ?? false)
                 {
                     _logger.Warning(
                         "Transaction {TransactionId} is in the block that is currently being mined - Discarding",
@@ -96,6 +101,7 @@ namespace BlockChain
                 }
 
                 _pendingTransactions.Add(transactionToAdd);
+
                 if (broadcastTransaction)
                 {
                     Task.Run(() => _peerToPeerController.BroadcastTransactionAsync(transactionToAdd));
@@ -183,6 +189,8 @@ namespace BlockChain
                     {
                         _blockChain.Add(block);
                         Task.Run(() => PersistChain());
+                        var rewardTransaction = FuncToGenerateGenerationTransaction.Invoke();
+                        Task.Run(() =>GenerateNewBlock(block, rewardTransaction));
                         return;
                     }
                 }
@@ -206,11 +214,8 @@ namespace BlockChain
                     }
 
                     Task.Run(() => _peerToPeerController.BroadcastNewBlockAsync(block));
-
-                    // TODO - How do we handle rewards
-
-
-                    GenerateNewBlock(block);
+                    var rewardTransaction = FuncToGenerateGenerationTransaction.Invoke();
+                    Task.Run(() => GenerateNewBlock(block, rewardTransaction));
                 }
                 else
                 {
@@ -229,13 +234,13 @@ namespace BlockChain
         /// <summary>
         /// Generates a new block to mine if there are transactions available
         /// </summary>
-        private void GenerateNewBlock(Block lastBlock)
+        private void GenerateNewBlock(Block lastBlock, Transaction rewardTransaction)
         {
             _logger.Information("Generating block from pending transactions...");
-            List<Transaction> transactionsToAppend;
+            var transactionsToAppend = new List<Transaction>{ rewardTransaction };
             lock (_pendingTransactionLock)
             {
-                transactionsToAppend = _pendingTransactions.ToList();
+                transactionsToAppend.AddRange(_pendingTransactions.ToList());
                 _pendingTransactions.Clear();
             }
 

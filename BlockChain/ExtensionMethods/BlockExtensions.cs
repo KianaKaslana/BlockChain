@@ -71,6 +71,12 @@ namespace BlockChain.ExtensionMethods
         /// <returns>Indicate if block being added is valid</returns>
         public static bool CheckBlockValidity(this Block newBlock, Block previousBlock)
         {
+            if (newBlock.Transactions.Count(x => x.Inputs == null) > 1)
+            {
+                Log.Logger.Error("A block may not contain more than a signle reward transaction!");
+                return false;
+            }
+
             if (newBlock.Index != (previousBlock?.Index + 1 ?? 0))
             {
                 return false;
