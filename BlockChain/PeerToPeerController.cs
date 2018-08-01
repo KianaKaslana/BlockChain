@@ -15,6 +15,7 @@ using Serilog;
 namespace BlockChain
 {
     // TODO - We need a method to pull parts of the chain from peers
+    // TODO - We need a method to pull full set of pending transactions from peers
     public class PeerToPeerController
     {
         /// <summary>

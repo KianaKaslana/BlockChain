@@ -70,9 +70,13 @@ namespace BlockChain.Readmodels
         public bool ProcessTransaction(BlockManager blockManager)
         {
             var logger = Log.Logger.ForContext<Transaction>();
-            foreach (var input in Inputs)
+            // TODO - Test this logic... somehow (Spent inputs)
+            var unspentOutputs = blockManager.GetUnspentOutputsForKey(Sender);
+            var spentInputs = Inputs.Where(x => unspentOutputs.Any(z => z.Id == x.TransactionOutputId));
+            if (spentInputs.Any())
             {
-                // TODO - Ensure inputs are not spent...
+                logger.Error("Could not process transaction - Some inputs has already been spent");
+                return false;
             }
 
             if (GetInputTotal() < blockManager.MinumumTransactionValue)

@@ -236,6 +236,7 @@ namespace BlockChain
         /// </summary>
         private void GenerateNewBlock(Block lastBlock, Transaction rewardTransaction)
         {
+            // TODO - Let peers know which transactions had been removed to prevent double mining them!!
             var transactionsToAppend = new List<Transaction>{ rewardTransaction };
             lock (_pendingTransactionLock)
             {
