@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using BlockChain.ExtensionMethods;
 
 namespace BlockChain.Readmodels
@@ -15,16 +16,16 @@ namespace BlockChain.Readmodels
         /// <param name="previousHash">Hash of the previous block</param>
         /// <param name="nextHash">Hash of the next block</param>
         /// <param name="timeStamp">TimeStamp when block was created</param>
-        /// <param name="data">Data contained in the block</param>
+        /// <param name="transactions">Transactions contained in the block</param>
         /// <param name="hash">Hash of blocks data</param>
         /// <param name="nonce">Nonce used to mine</param>
-        public Block(int index, string previousHash, string nextHash, DateTime timeStamp, byte[] data, string hash, int nonce)
+        public Block(int index, string previousHash, string nextHash, DateTime timeStamp, List<Transaction> transactions, string hash, int nonce)
         {
             Index = index;
             PreviousHash = previousHash;
             NextHash = nextHash;
             TimeStamp = timeStamp;
-            Data = data;
+            Transactions = transactions;
             Nonce = nonce;
 
             if (string.IsNullOrEmpty(hash))
@@ -66,9 +67,9 @@ namespace BlockChain.Readmodels
         public DateTime TimeStamp { get; }
 
         /// <summary>
-        /// Data stored by the block
+        /// List of transactions
         /// </summary>
-        public byte[] Data { get; }
+        public List<Transaction> Transactions { get; }
 
         /// <summary>
         /// SHA256 Hash of the block covering the Index, previous hash, timestamp and data

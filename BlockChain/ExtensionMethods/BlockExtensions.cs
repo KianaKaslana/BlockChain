@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using BlockChain.Readmodels;
+using Newtonsoft.Json;
 using Serilog;
 
 namespace BlockChain.ExtensionMethods
@@ -26,11 +27,11 @@ namespace BlockChain.ExtensionMethods
             blockData.AddRange(Encoding.UTF8.GetBytes(block.PreviousHash ?? String.Empty));
             blockData.AddRange(Encoding.UTF8.GetBytes(block.TimeStamp.ToBinary().ToString()));
             blockData.AddRange(Encoding.UTF8.GetBytes(block.Nonce.ToString()));
-            blockData.AddRange(block.Data);
+            blockData.AddRange(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(block.Transactions)));
 
             var shaer = new SHA256Managed();
             var hashArr = shaer.ComputeHash(blockData.ToArray());
-            return String.Join("", hashArr.Select(x => x.ToString("x2")));
+            return string.Join("", hashArr.Select(x => x.ToString("x2")));
         }
 
         /// <summary>

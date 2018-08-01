@@ -19,23 +19,29 @@ namespace BlockChain
         /// Default Constructor
         /// </summary>
         /// <param name="peerToPeerController">PeerController instance</param>
-        /// <param name="genesisBlock">The first block in the chain</param>
-        public BlockManager(PeerToPeerController peerToPeerController, Block genesisBlock)
+        public BlockManager(PeerToPeerController peerToPeerController)
         {
+            _blockChain = new List<Block>();
             _logger = Log.Logger.ForContext<BlockManager>();
 
-            _chainPersistence = new ChainPersistence();
             _difficulty = 5;
+            MinumumTransactionValue = 0.5;
+
+            _chainPersistence = new ChainPersistence();
             _peerToPeerController = peerToPeerController;
             _peerToPeerController.SetBlockCheckFunction(FuncToCheckBlocks, GetLastBlock, GetBlocks, ReplaceChain, MineBlock);
             _peerToPeerController.BlockReceivedFromNetwork += PeerToPeerControllerOnBlockReceivedFromNetwork;
-            SetupChain(genesisBlock);
         }
+
+        /// <summary>
+        /// Minumum transaction allowed
+        /// </summary>
+        public double MinumumTransactionValue { get; }
 
         /// <summary>
         /// Attempt to load the
         /// </summary>
-        private void SetupChain(Block genesisBlock)
+        public void SetupChain(Block genesisBlock)
         {
             var persistedChain = _chainPersistence.LoadChain();
             if (persistedChain == null)
@@ -43,10 +49,7 @@ namespace BlockChain
                 _logger.Information("Starting new chain");
                 lock (_blockChainLock)
                 {
-                    _blockChain = new List<Block>
-                    {
-                        genesisBlock
-                    };
+                    MineBlock(genesisBlock);
                 }
             }
             else
@@ -114,12 +117,12 @@ namespace BlockChain
         /// <summary>
         /// Generate a new block on the chain
         /// </summary>
-        /// <param name="data">Data to add to the block</param>
+        /// <param name="transactions">Transactions to add to the block</param>
         /// <returns>Generated block</returns>
-        public void GenerateBlock(byte[] data)
+        public void GenerateBlock(List<Transaction> transactions)
         {
             var lastBlock = GetLastBlock();
-            var newBlock = new Block(lastBlock.Index + 1, lastBlock.Hash, null, DateTime.Now, data, string.Empty, 1);
+            var newBlock = new Block(lastBlock.Index + 1, lastBlock.Hash, null, DateTime.Now, transactions, string.Empty, 1);
             Task.Run(() => _peerToPeerController.BroadCastNextBlockToMineAsync(newBlock));
             Task.Run(() => MineBlock(newBlock));
         }
@@ -137,6 +140,18 @@ namespace BlockChain
 
                 _logger.Information("Mining new block...");
                 block.Mine(_difficulty, _miningCancellationTokenSource.Token);
+
+                //This is the genesis block
+                if (block.PreviousHash == null
+                    && block.NextHash == null)
+                {
+                    lock (_blockChainLock)
+                    {
+                        _blockChain.Add(block);
+                        Task.Run(() => PersistChain());
+                        return;
+                    }
+                }
 
                 var lastBlock = GetLastBlock();
                 if (block.CheckBlockValidity(lastBlock))
@@ -197,6 +212,29 @@ namespace BlockChain
                     _logger.Warning("Received chain was invalid - Current chain was not replaced");
                 }
             }
+        }
+
+        /// <summary>
+        /// Gather input transactions for a specific public key
+        /// </summary>
+        /// <param name="publicKey">PublicKey for which inputs should be gathered</param>
+        /// <returns>Unspent inputs</returns>
+        public List<TransactionOutput> GetUnspentOutputsForKey(byte[] publicKey)
+        {
+            var outputs = _blockChain
+                .SelectMany(x => x.Transactions)
+                .SelectMany(x => x.Outputs)
+                .Where(x => x.IsMine(publicKey));
+
+            var spentInputs = _blockChain
+                .SelectMany(x => x.Transactions)
+                .SelectMany(x => x.Inputs ?? new List<TransactionInput>())
+                .Select(x => x.TransactionOutputId)
+                .ToList();
+
+            return outputs
+                .Where(x => !spentInputs.Contains(x.Id))
+                .ToList();
         }
 
         /// <summary>
