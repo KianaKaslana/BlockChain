@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,6 +28,7 @@ namespace BlockChain
             _listener.Prefixes.Add($"http://localhost:{port}/addpeer/");
             _listener.Prefixes.Add($"http://localhost:{port}/getpeers/");
             _listener.Prefixes.Add($"http://localhost:{port}/getbalance/");
+            _listener.Prefixes.Add($"http://localhost:{port}/getwalletaddress/");
             Task.Run(RunServerAsync);
         }
 
@@ -70,6 +72,9 @@ namespace BlockChain
                     case "/getbalance":
                         ReturnBalance(context);
                         break;
+                    case "/getwalletaddress":
+                        ReturnWalletAddress(context);
+                        break;
                 }
             }
             catch (Exception exception)
@@ -84,6 +89,20 @@ namespace BlockChain
                 context.Response.OutputStream.Close();
             }
 
+        }
+
+        /// <summary>
+        /// Returns the miner's wallet address
+        /// </summary>
+        /// <param name="context"></param>
+        private void ReturnWalletAddress(HttpListenerContext context)
+        {
+            var publicKey = string.Join("", _wallet.GetPublicKey.Select(x => x.ToString("x2")));
+            using (var memStream = new MemoryStream(Encoding.UTF8.GetBytes(publicKey)))
+            {
+                context.Response.StatusCode = 200;
+                memStream.CopyTo(context.Response.OutputStream);
+            }
         }
 
         /// <summary>

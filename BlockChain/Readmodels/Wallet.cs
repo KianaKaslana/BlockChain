@@ -33,7 +33,7 @@ namespace BlockChain.Readmodels
         public CngKey KeyPair { get; private set; }
 
         /// <summary>
-        /// Get the public key from the <see cref="KeyPair"/> as a <see cref="CngKeyBlobFormat.EccFullPublicBlob"/>
+        /// Get the public key from the <see cref="KeyPair"/> as a <see cref="CngKeyBlobFormat.EccPublicBlob"/>
         /// </summary>
         public byte[] GetPublicKey { get; set; }
 
@@ -82,6 +82,7 @@ namespace BlockChain.Readmodels
 
             var transaction = new Transaction(GetPublicKey, recipientKey, value, inputsToTransaction);
             transaction.SignTransaction(GetPrivateKey);
+            _blockManager.AddTransaction(transaction, true);
 
             return transaction;
         }
@@ -95,7 +96,7 @@ namespace BlockChain.Readmodels
             KeyPair = CngKeyExtensions.CreateNewDsaKey();
             // TODO - How do we secure the key when we save it to disk?
             GetPrivateKey = KeyPair.Export(CngKeyBlobFormat.EccFullPrivateBlob);
-            GetPublicKey = KeyPair.Export(CngKeyBlobFormat.EccFullPublicBlob);
+            GetPublicKey = KeyPair.Export(CngKeyBlobFormat.EccPublicBlob);
             using (var file = File.OpenWrite(PrivateKeyPath))
             {
                 file.Write(GetPrivateKey);
@@ -119,7 +120,7 @@ namespace BlockChain.Readmodels
                 // Import the key
                 KeyPair = CngKey.Import(privateKey, CngKeyBlobFormat.EccFullPrivateBlob);
                 GetPrivateKey = privateKey;
-                GetPublicKey = KeyPair.Export(CngKeyBlobFormat.EccFullPublicBlob);
+                GetPublicKey = KeyPair.Export(CngKeyBlobFormat.EccPublicBlob);
             }
 
             return true;

@@ -20,7 +20,12 @@ namespace BlockChain
         /// <summary>
         /// Fired when a Block was received from a peer
         /// </summary>
-        public event EventHandler<Block> BlockReceivedFromNetwork; 
+        public event EventHandler<Block> BlockReceivedFromNetwork;
+
+        /// <summary>
+        /// Fired when a Transaction was received from a peer
+        /// </summary>
+        public event EventHandler<Transaction> TransactionReceivedFromNetwork; 
 
         /// <summary>
         /// Default Constructor
@@ -149,8 +154,23 @@ namespace BlockChain
                     case MessageType.BlockToMine:
                         HandleBlockToMine(obj, e.RemoteIp);
                         break;
+                    case MessageType.AddTransaction:
+                        HandleTransactionAddition(obj, e.RemoteIp);
+                        break;
                 }
             });
+        }
+
+        /// <summary>
+        /// Handle addition of transactions
+        /// </summary>
+        /// <param name="container">Container with details of block to be mined</param>
+        /// <param name="senderIp">IP of the peer that sent the block</param>
+        private void HandleTransactionAddition(MessageContainer container, string senderIp)
+        {
+            var transaction = JsonConvert.DeserializeObject<Transaction>(container.JsonPayload);
+            _logger.Information("Received a new transaction {TransactionId} from {IpAddress}", transaction.TransactionId,  senderIp);
+            TransactionReceivedFromNetwork?.Invoke(this, transaction);
         }
 
         /// <summary>
@@ -213,6 +233,21 @@ namespace BlockChain
             {
                 MessageType = MessageType.NewBlockMined,
                 JsonPayload = blockJson
+            };
+            await _transportManager.SendToAllPeersAsyncTCP(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(container)));
+        }
+
+        /// <summary>
+        /// Broadcast transactio to peers
+        /// </summary>
+        /// <param name="transactionToSend">The transaction to send</param>
+        public async Task BroadcastTransactionAsync(Transaction transactionToSend)
+        {
+            var transactionJson = JsonConvert.SerializeObject(transactionToSend);
+            var container = new MessageContainer
+            {
+                MessageType = MessageType.AddTransaction,
+                JsonPayload = transactionJson
             };
             await _transportManager.SendToAllPeersAsyncTCP(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(container)));
         }

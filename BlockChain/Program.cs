@@ -27,7 +27,8 @@ namespace BlockChain
         /// <summary>
         /// Generate a genesis block and transfer coins to our wallet
         /// </summary>
-        /// <param name="myWallet"></param>
+        /// <param name="blockManager">BlockManager instance</param>
+        /// <param name="myWallet">Miner's wallet</param>
         private static void GenerateGenesisBlock(BlockManager blockManager, Wallet myWallet)
         {
             var coinbase = new Wallet(blockManager, "Coinbase");

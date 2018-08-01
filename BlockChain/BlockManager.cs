@@ -22,6 +22,7 @@ namespace BlockChain
         public BlockManager(PeerToPeerController peerToPeerController)
         {
             _blockChain = new List<Block>();
+            _pendingTransactions = new List<Transaction>();
             _logger = Log.Logger.ForContext<BlockManager>();
 
             _difficulty = 5;
@@ -31,6 +32,17 @@ namespace BlockChain
             _peerToPeerController = peerToPeerController;
             _peerToPeerController.SetBlockCheckFunction(FuncToCheckBlocks, GetLastBlock, GetBlocks, ReplaceChain, MineBlock);
             _peerToPeerController.BlockReceivedFromNetwork += PeerToPeerControllerOnBlockReceivedFromNetwork;
+            _peerToPeerController.TransactionReceivedFromNetwork += PeerToPeerControllerOnTransactionReceivedFromNetwork;
+        }
+
+        /// <summary>
+        /// Occurs when a transaction was received from the network
+        /// </summary>
+        /// <param name="sender">Sender of the event</param>
+        /// <param name="e">Received transaction</param>
+        private void PeerToPeerControllerOnTransactionReceivedFromNetwork(object sender, Transaction e)
+        {
+            Task.Run(() => AddTransaction(e, false));
         }
 
         /// <summary>
@@ -57,7 +69,40 @@ namespace BlockChain
                 ReplaceChain(persistedChain);
             }
         }
-        
+
+        /// <summary>
+        /// Add a new transaction that should be processed
+        /// </summary>
+        /// <param name="transactionToAdd">The transaction that should be added</param>
+        /// <param name="broadcastTransaction">Indicate if transaction should be broadcast to peers. Should be true unless the transaction was received from a peer</param>
+        public void AddTransaction(Transaction transactionToAdd, bool broadcastTransaction)
+        {
+            lock (_pendingTransactionLock)
+            {
+                if (_pendingTransactions.Contains(transactionToAdd))
+                {
+                    _logger.Warning(
+                        "Transaction {TransactionId} already exists in the pending transaction list - Discarding",
+                        transactionToAdd.TransactionId);
+                    return;
+                }
+
+                if (_currentlyMiningBlock.Transactions.Contains(transactionToAdd))
+                {
+                    _logger.Warning(
+                        "Transaction {TransactionId} is in the block that is currently being mined - Discarding",
+                        transactionToAdd.TransactionId);
+                    return;
+                }
+
+                _pendingTransactions.Add(transactionToAdd);
+                if (broadcastTransaction)
+                {
+                    Task.Run(() => _peerToPeerController.BroadcastTransactionAsync(transactionToAdd));
+                }
+            }
+        }
+
         /// <summary>
         /// Function that can be invoked to check if a provided block is the last block in our chain
         /// </summary>
@@ -115,19 +160,6 @@ namespace BlockChain
         }
 
         /// <summary>
-        /// Generate a new block on the chain
-        /// </summary>
-        /// <param name="transactions">Transactions to add to the block</param>
-        /// <returns>Generated block</returns>
-        public void GenerateBlock(List<Transaction> transactions)
-        {
-            var lastBlock = GetLastBlock();
-            var newBlock = new Block(lastBlock.Index + 1, lastBlock.Hash, null, DateTime.Now, transactions, string.Empty, 1);
-            Task.Run(() => _peerToPeerController.BroadCastNextBlockToMineAsync(newBlock));
-            Task.Run(() => MineBlock(newBlock));
-        }
-
-        /// <summary>
         /// Mine a block
         /// </summary>
         /// <param name="block">The Block to mine</param>
@@ -136,6 +168,8 @@ namespace BlockChain
             try
             {
                 _miningSemaphore.Wait();
+                _currentlyMiningBlock = block;
+                // TODO - Validate transactions
                 _miningCancellationTokenSource = new CancellationTokenSource();
 
                 _logger.Information("Mining new block...");
@@ -172,6 +206,11 @@ namespace BlockChain
                     }
 
                     Task.Run(() => _peerToPeerController.BroadcastNewBlockAsync(block));
+
+                    // TODO - How do we handle rewards
+
+
+                    GenerateNewBlock(block);
                 }
                 else
                 {
@@ -182,8 +221,26 @@ namespace BlockChain
             {
                 _miningCancellationTokenSource.Dispose();
                 _miningCancellationTokenSource = null;
+                _currentlyMiningBlock = null;
                 _miningSemaphore.Release();
             }
+        }
+
+        /// <summary>
+        /// Generates a new block to mine if there are transactions available
+        /// </summary>
+        private void GenerateNewBlock(Block lastBlock)
+        {
+            _logger.Information("Generating block from pending transactions...");
+            List<Transaction> transactionsToAppend;
+            lock (_pendingTransactionLock)
+            {
+                transactionsToAppend = _pendingTransactions.ToList();
+                _pendingTransactions.Clear();
+            }
+
+            var newBlock = new Block(lastBlock.Index + 1, lastBlock.Hash, null, DateTime.UtcNow, transactionsToAppend, string.Empty, 1);
+            MineBlock(newBlock);
         }
 
         /// <summary>
@@ -221,12 +278,14 @@ namespace BlockChain
         /// <returns>Unspent inputs</returns>
         public List<TransactionOutput> GetUnspentOutputsForKey(byte[] publicKey)
         {
-            var outputs = _blockChain
+            var currentBlocks = GetBlocks();
+
+            var outputs = currentBlocks
                 .SelectMany(x => x.Transactions)
                 .SelectMany(x => x.Outputs)
                 .Where(x => x.IsMine(publicKey));
 
-            var spentInputs = _blockChain
+            var spentInputs = currentBlocks
                 .SelectMany(x => x.Transactions)
                 .SelectMany(x => x.Inputs ?? new List<TransactionInput>())
                 .Select(x => x.TransactionOutputId)
@@ -256,6 +315,11 @@ namespace BlockChain
         {
             _chainPersistence.PersistChain(_blockChain);
         }
+
+        /// <summary>
+        /// List containing pending transactions
+        /// </summary>
+        private readonly List<Transaction> _pendingTransactions;
 
         /// <summary>
         /// Collection of all Blocks in the chain
@@ -296,5 +360,15 @@ namespace BlockChain
         /// ChainPersistence instance
         /// </summary>
         private readonly ChainPersistence _chainPersistence;
+
+        /// <summary>
+        /// Object used to lock the <see cref="_pendingTransactions"/> collection
+        /// </summary>
+        private readonly object _pendingTransactionLock = new object();
+
+        /// <summary>
+        /// The block that is currently being mined
+        /// </summary>
+        private Block _currentlyMiningBlock;
     }
 }

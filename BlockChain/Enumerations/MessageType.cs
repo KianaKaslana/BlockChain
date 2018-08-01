@@ -33,6 +33,11 @@
         /// <summary>
         /// Data for the next block that should be mined
         /// </summary>
-        BlockToMine
+        BlockToMine,
+
+        /// <summary>
+        /// Add a new transaction
+        /// </summary>
+        AddTransaction
     }
 }
