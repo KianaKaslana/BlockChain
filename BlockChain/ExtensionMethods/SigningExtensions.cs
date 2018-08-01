@@ -16,7 +16,7 @@ namespace BlockChain.ExtensionMethods
         /// <returns>Signature</returns>
         public static byte[] Sign(this string stringToSign, byte[] privateKey)
         {
-            var key = CngKey.Import(privateKey, CngKeyBlobFormat.EccFullPrivateBlob);
+            var key = CngKey.Import(privateKey, CngKeyBlobFormat.GenericPrivateBlob);
             using (var ecdsa = new ECDsaCng(key) {HashAlgorithm = CngAlgorithm.Sha384})
             {
                 return ecdsa.SignData(Encoding.UTF8.GetBytes(stringToSign));

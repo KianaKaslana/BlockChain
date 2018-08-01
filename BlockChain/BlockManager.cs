@@ -236,7 +236,6 @@ namespace BlockChain
         /// </summary>
         private void GenerateNewBlock(Block lastBlock, Transaction rewardTransaction)
         {
-            _logger.Information("Generating block from pending transactions...");
             var transactionsToAppend = new List<Transaction>{ rewardTransaction };
             lock (_pendingTransactionLock)
             {
@@ -244,8 +243,10 @@ namespace BlockChain
                 _pendingTransactions.Clear();
             }
 
+            _logger.Information("Generating block with {PendingTransactions} pending transactions...", transactionsToAppend.Count);
             var newBlock = new Block(lastBlock.Index + 1, lastBlock.Hash, null, DateTime.UtcNow, transactionsToAppend, string.Empty, 1);
-            MineBlock(newBlock);
+            Task.Run(() => MineBlock(newBlock));
+            Task.Run(() => _peerToPeerController.BroadCastNextBlockToMineAsync(newBlock));
         }
 
         /// <summary>

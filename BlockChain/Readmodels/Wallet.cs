@@ -111,8 +111,8 @@ namespace BlockChain.Readmodels
             // Create and export key
             KeyPair = CngKeyExtensions.CreateNewDsaKey();
             // TODO - How do we secure the key when we save it to disk?
-            GetPrivateKey = KeyPair.Export(CngKeyBlobFormat.EccFullPrivateBlob);
-            GetPublicKey = KeyPair.Export(CngKeyBlobFormat.EccPublicBlob);
+            GetPrivateKey = KeyPair.Export(CngKeyBlobFormat.GenericPrivateBlob);
+            GetPublicKey = KeyPair.Export(CngKeyBlobFormat.GenericPublicBlob);
             using (var file = File.OpenWrite(PrivateKeyPath))
             {
                 file.Write(GetPrivateKey);
@@ -134,9 +134,9 @@ namespace BlockChain.Readmodels
                 var privateKey = new byte[file.Length];
                 file.Read(privateKey, 0, (int)file.Length);
                 // Import the key
-                KeyPair = CngKey.Import(privateKey, CngKeyBlobFormat.EccFullPrivateBlob);
+                KeyPair = CngKey.Import(privateKey, CngKeyBlobFormat.GenericPrivateBlob);
                 GetPrivateKey = privateKey;
-                GetPublicKey = KeyPair.Export(CngKeyBlobFormat.EccPublicBlob);
+                GetPublicKey = KeyPair.Export(CngKeyBlobFormat.GenericPublicBlob);
             }
 
             return true;
